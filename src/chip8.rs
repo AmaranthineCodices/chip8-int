@@ -118,6 +118,46 @@ mod chip8 {
             if let Some(decoded_opcode) = decode_opcode(opcode) {
                 match decoded_opcode {
                     Opcode::Jump { address } => self.program_counter = address,
+                    Opcode::SkipIfEqual { register, value } => {
+                        if register > 15 {
+                            panic!("Register index out of range: {} > 15", register);
+                        }
+                        
+                        let register_value = self.registers[register];
+
+                        if register_value == value {
+                            // Skip the next instruction
+                            self.program_counter += 2;
+                        }
+                    },
+                    Opcode::SkipIfNotEqual { register, value } => {
+                        if register > 15 {
+                            panic!("Register index out of range: {} > 15", register);
+                        }
+                        
+                        let register_value = self.registers[register];
+
+                        if register_value != value {
+                            // Skip the next instruction
+                            self.program_counter += 2;
+                        }
+                    },
+                    Opcode::SkipIfRegistersEqual { register1, register2 } => {
+                        if register1 > 15 {
+                            panic!("Register index out of range: {} > 15", register1);
+                        }
+
+                        if register2 > 15 {
+                            panic!("Register index out of range: {} > 15", register2);
+                        }
+
+                        let r1_value = self.registers[register1];
+                        let r2_value = self.registers[register2];
+                        
+                        if r1_value == r2_value {
+                            self.program_counter += 2;
+                        }
+                    },
                     Opcode::SetIndexRegister { value } => self.index_register = value,
                     _ => panic!("unimplemented opcode {:?} (raw: {})", decoded_opcode, opcode),
                 }
