@@ -109,6 +109,10 @@ mod chip8 {
             // Then binary-or the lower value into the space that opcode_upper used to occupy
             let opcode = opcode_upper << 8 | opcode_lower;
 
+            // Increment the program counter so we move past the instruction
+            // Do this *here* so that if program_counter is changed, this change is overwritten
+            self.program_counter += 2;
+
             // decode_opcode can return None; in the interests of making testing, etc. easier
             // this is not handled at all.
             if let Some(decoded_opcode) = decode_opcode(opcode) {
@@ -118,9 +122,6 @@ mod chip8 {
                     _ => panic!("unimplemented opcode {:?} (raw: {})", decoded_opcode, opcode),
                 }
             }
-
-            // Increment the program counter so we move past the instruction
-            self.program_counter += 2;
         }
 
         /// Steps the chip8 VM.
@@ -132,8 +133,13 @@ mod chip8 {
             self.process_next_opcode();
 
             // Decrement timers
-            self.delay_timer -= 1;
-            self.sound_timer -= 1;
+            if self.delay_timer > 0 {
+                self.delay_timer -= 1;
+            }
+
+            if self.sound_timer > 0 {
+                self.sound_timer -= 1;
+            }
         }
     }
 
@@ -149,6 +155,26 @@ mod chip8 {
             vm.step();
             assert_eq!(vm.delay_timer, 29);
             assert_eq!(vm.sound_timer, 18);
+
+            // Make sure we don't panic due to subtract w/ overflow:
+            vm.sound_timer = 0;
+            vm.step();
+            assert_eq!(vm.sound_timer, 0);
+        }
+
+        mod opcode_executing {
+            use super::*;
+
+            #[test]
+            fn jump() {
+                let mut vm = Chip8::new();
+                vm.memory[0] = 0x19;
+                vm.memory[1] = 0xDE;
+                vm.program_counter = 0x0000;
+                vm.step();
+
+                assert_eq!(vm.program_counter, 0x09DE);
+            }
         }
 
         mod opcode_decoding {
