@@ -90,6 +90,13 @@ mod chip8 {
                 value: (opcode & 0x00FF) as u8,
             })
         }
+        // 0x8xy0: Set register Vx's value to register Vy's value
+        else if opcode & 0xF000 == 0x8000 {
+            return Some(Opcode::CopyRegister {
+                target: ((opcode & 0x0F00) >> 8) as usize,
+                source: ((opcode & 0x00F0) >> 4) as usize,
+            })
+        }
         // 0xAnnn: Set index register
         else if opcode & 0xF000 == 0xA000 {
             return Some(Opcode::SetIndexRegister { value: opcode & 0x0FFF });
@@ -205,6 +212,17 @@ mod chip8 {
                         // Unsure: Is wrapping_add or clamping at max the correct behavior?
                         let sum = register_value.wrapping_add(value);
                         self.registers[register] = sum;
+                    },
+                    Opcode::CopyRegister { target, source } => {
+                        if target > 15 {
+                            panic!("Register index out of range: {} > 15", target);
+                        }
+
+                        if source > 15 {
+                            panic!("Register index out of range: {} > 15", source);
+                        }
+
+                        self.registers[target] = self.registers[source];
                     },
                     Opcode::SetIndexRegister { value } => self.index_register = value,
                     _ => panic!("unimplemented opcode {:?} (raw: {})", decoded_opcode, opcode),
@@ -363,6 +381,18 @@ mod chip8 {
                 vm.step();
                 assert_eq!(vm.registers[0], 0x23 + 0x13);
             }
+
+            #[test]
+            fn copy_register() {
+                let mut vm = Chip8::new();
+                vm.memory[0] = 0x80;
+                vm.memory[1] = 0x10;
+                vm.registers[0] = 0x13;
+                vm.registers[1] = 0xFF;
+                vm.program_counter = 0x0000;
+                vm.step();
+                assert_eq!(vm.registers[0], 0xFF);
+            }
         }
 
         mod opcode_decoding {
@@ -466,6 +496,20 @@ mod chip8 {
                     Some(Opcode::AddConstant { register, value }) => {
                         assert_eq!(register, 0x02);
                         assert_eq!(value, 0xEE);
+                    },
+                    _ => panic!("decoded wrong opcode {:?}", decoded_opcode)
+                }
+            }
+
+            #[test]
+            fn copy_register() {
+                let opcode = 0x8370;
+                let decoded_opcode = decode_opcode(opcode);
+
+                match decoded_opcode {
+                    Some(Opcode::CopyRegister { target, source }) => {
+                        assert_eq!(target, 0x03);
+                        assert_eq!(source, 0x07);
                     },
                     _ => panic!("decoded wrong opcode {:?}", decoded_opcode)
                 }
