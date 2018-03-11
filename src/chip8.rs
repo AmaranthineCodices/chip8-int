@@ -83,6 +83,13 @@ mod chip8 {
                 value: (opcode & 0x00FF) as u8,
             })
         }
+        // 0x7rnn: Add value to register
+        else if opcode & 0xF000 == 0x7000 {
+            return Some(Opcode::AddConstant {
+                register: ((opcode & 0x0F00) >> 8) as usize,
+                value: (opcode & 0x00FF) as u8,
+            })
+        }
         // 0xAnnn: Set index register
         else if opcode & 0xF000 == 0xA000 {
             return Some(Opcode::SetIndexRegister { value: opcode & 0x0FFF });
@@ -188,6 +195,16 @@ mod chip8 {
                         }
 
                         self.registers[register] = value;
+                    },
+                    Opcode::AddConstant { register, value } => {
+                        if register > 15 {
+                            panic!("Register index out of range: {} > 15", register);
+                        }
+
+                        let register_value = self.registers[register];
+                        // Unsure: Is wrapping_add or clamping at max the correct behavior?
+                        let sum = register_value.wrapping_add(value);
+                        self.registers[register] = sum;
                     },
                     Opcode::SetIndexRegister { value } => self.index_register = value,
                     _ => panic!("unimplemented opcode {:?} (raw: {})", decoded_opcode, opcode),
@@ -335,6 +352,17 @@ mod chip8 {
                 vm.step();
                 assert_eq!(vm.registers[0], 0xFF);
             }
+
+            #[test]
+            fn add_const() {
+                let mut vm = Chip8::new();
+                vm.memory[0] = 0x70;
+                vm.memory[1] = 0x23;
+                vm.registers[0] = 0x13;
+                vm.program_counter = 0x0000;
+                vm.step();
+                assert_eq!(vm.registers[0], 0x23 + 0x13);
+            }
         }
 
         mod opcode_decoding {
@@ -424,6 +452,20 @@ mod chip8 {
                     Some(Opcode::SetRegister { register, value }) => {
                         assert_eq!(register, 0x0E);
                         assert_eq!(value, 0x72);
+                    },
+                    _ => panic!("decoded wrong opcode {:?}", decoded_opcode)
+                }
+            }
+
+            #[test]
+            fn add_const() {
+                let opcode = 0x72EE;
+                let decoded_opcode = decode_opcode(opcode);
+
+                match decoded_opcode {
+                    Some(Opcode::AddConstant { register, value }) => {
+                        assert_eq!(register, 0x02);
+                        assert_eq!(value, 0xEE);
                     },
                     _ => panic!("decoded wrong opcode {:?}", decoded_opcode)
                 }
