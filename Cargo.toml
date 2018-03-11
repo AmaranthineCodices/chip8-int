@@ -1,0 +1,10 @@
+[package]
+name = "chip8-int"
+version = "0.1.0"
+authors = ["AmaranthineCodices <AmaranthineCodices@gmail.com>"]
+
+[dependencies]
+piston = "0.36.*"
+piston2d-graphics = "0.26.*"
+pistoncore-glutin_window = "0.45.*"
+piston2d-opengl_graphics = "0.52.*"
