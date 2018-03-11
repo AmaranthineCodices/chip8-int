@@ -23,7 +23,7 @@ mod chip8 {
         // Add a constant to a register value
         AddConstant { register: usize, value: u8 },
         // Assign a register's value to another register
-        Assign { source: usize, target: usize },
+        CopyRegister { source: usize, target: usize },
         // Sets the target's value to target | other
         BitOr { target: usize, other: usize },
         // Sets the target's value to target & other
