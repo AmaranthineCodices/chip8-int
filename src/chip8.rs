@@ -57,7 +57,24 @@ mod chip8 {
         }
         // 0x3rnn: Skip if register Vr == nn
         else if opcode & 0xF000 == 0x3000 {
-            return Some(Opcode::SkipIfEqual { register: ((opcode & 0x0F00) >> 8) as usize, value: (opcode & 0x00FF) as u8 });
+            return Some(Opcode::SkipIfEqual {
+                register: ((opcode & 0x0F00) >> 8) as usize,
+                value: (opcode & 0x00FF) as u8 }
+            );
+        }
+        // 0x4rnn: Skip if register Vr != nn
+        else if opcode & 0xF000 == 0x4000 {
+            return Some(Opcode::SkipIfNotEqual {
+                register: ((opcode & 0x0F00) >> 8) as usize,
+                value: (opcode & 0x00FF) as u8,
+            });
+        }
+        // 0x5xy0: Skip if register Vx == register Vy
+        else if opcode & 0xF000 == 0x5000 {
+            return Some(Opcode::SkipIfRegistersEqual {
+                register1: ((opcode & 0x0F00) >> 8) as usize,
+                register2: ((opcode & 0x00F0) >> 4) as usize,
+            });
         }
         // 0xAnnn: Set index register
         else if opcode & 0xF000 == 0xA000 {
@@ -262,6 +279,34 @@ mod chip8 {
                     Some(Opcode::SkipIfEqual { register, value }) => {
                         assert_eq!(register, 0x04);
                         assert_eq!(value, 0x2F);
+                    },
+                    _ => panic!("decoded wrong opcode {:?}", decoded_opcode)
+                }
+            }
+
+            #[test]
+            fn skip_if_not_eq_const() {
+                let opcode = 0x461F;
+                let decoded_opcode = decode_opcode(opcode);
+
+                match decoded_opcode {
+                    Some(Opcode::SkipIfNotEqual { register, value }) => {
+                        assert_eq!(register, 0x06);
+                        assert_eq!(value, 0x1F);
+                    },
+                    _ => panic!("decoded wrong opcode {:?}", decoded_opcode)
+                }
+            }
+
+            #[test]
+            fn skip_if_registers_eq() {
+                let opcode = 0x5A30;
+                let decoded_opcode = decode_opcode(opcode);
+
+                match decoded_opcode {
+                    Some(Opcode::SkipIfRegistersEqual { register1, register2 }) => {
+                        assert_eq!(register1, 0x0A);
+                        assert_eq!(register2, 0x03);
                     },
                     _ => panic!("decoded wrong opcode {:?}", decoded_opcode)
                 }
