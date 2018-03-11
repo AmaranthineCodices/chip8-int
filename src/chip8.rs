@@ -175,6 +175,17 @@ mod chip8 {
 
                 assert_eq!(vm.program_counter, 0x09DE);
             }
+
+            #[test]
+            fn set_idx_reg() {
+                let mut vm = Chip8::new();
+                vm.memory[0] = 0xA3;
+                vm.memory[1] = 0x87;
+                vm.program_counter = 0x0000;
+                vm.step();
+
+                assert_eq!(vm.index_register, 0x0387);
+            }
         }
 
         mod opcode_decoding {
