@@ -91,7 +91,7 @@ mod chip8 {
             })
         }
         // 0x8xy0: Set register Vx's value to register Vy's value
-        else if opcode & 0xF000 == 0x8000 {
+        else if opcode & 0xF00F == 0x8000 {
             return Some(Opcode::CopyRegister {
                 target: ((opcode & 0x0F00) >> 8) as usize,
                 source: ((opcode & 0x00F0) >> 4) as usize,
