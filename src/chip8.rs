@@ -13,27 +13,27 @@ mod chip8 {
         // Call subroutine at memory address
         Call { address: u16 },
         // Skip if register value == constant
-        SkipIfEqual { register: u8, value: u8 },
+        SkipIfEqual { register: usize, value: u8 },
         // Skip if register value != constant
-        SkipIfNotEqual { register: u8, value: u8 },
+        SkipIfNotEqual { register: usize, value: u8 },
         // Skip if register 1 value == register 2 value
-        SkipIfRegistersEqual { register1: u8, register2: u8 },
+        SkipIfRegistersEqual { register1: usize, register2: usize },
         // Set register value to a constant
-        SetRegister { register: u8, value: u8 },
+        SetRegister { register: usize, value: u8 },
         // Add a constant to a register value
-        AddConstant { register: u8, value: u8 },
+        AddConstant { register: usize, value: u8 },
         // Assign a register's value to another register
-        Assign { source: u8, target: u8 },
+        Assign { source: usize, target: usize },
         // Sets the target's value to target | other
-        BitOr { target: u8, other: u8 },
+        BitOr { target: usize, other: usize },
         // Sets the target's value to target & other
-        BitAnd { target: u8, other: u8 },
+        BitAnd { target: usize, other: usize },
         // Sets the target's value to target ^ other
-        BitXor { target: u8, other: u8 },
+        BitXor { target: usize, other: usize },
         // Add a register's value to another register's value. VF is set to 0 if no carry and 1 if carry.
-        AddRegister { target: u8, other: u8 },
+        AddRegister { target: usize, other: usize },
         // Subtract a register's value from another register's value. VF is set to 0 if borrow and 1 if no borrow.
-        SubtractRegister { target: u8, other:u8 },
+        SubtractRegister { target: usize, other: usize },
         // 0xAnnn: Sets the index register to a value
         SetIndexRegister { value: u16 },
     }
@@ -57,7 +57,7 @@ mod chip8 {
         }
         // 0x3rnn: Skip if register Vr == nn
         else if opcode & 0xF000 == 0x3000 {
-            return Some(Opcode::SkipIfEqual { register: ((opcode & 0x0F00) >> 8) as u8, value: (opcode & 0x00FF) as u8 });
+            return Some(Opcode::SkipIfEqual { register: ((opcode & 0x0F00) >> 8) as usize, value: (opcode & 0x00FF) as u8 });
         }
         // 0xAnnn: Set index register
         else if opcode & 0xF000 == 0xA000 {
