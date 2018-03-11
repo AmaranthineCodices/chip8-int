@@ -76,6 +76,13 @@ mod chip8 {
                 register2: ((opcode & 0x00F0) >> 4) as usize,
             });
         }
+        // 0x6rnn: Set register Vr to nn
+        else if opcode & 0xF000 == 0x6000 {
+            return Some(Opcode::SetRegister {
+                register: ((opcode & 0x0F00) >> 8) as usize,
+                value: (opcode & 0x00FF) as u8,
+            })
+        }
         // 0xAnnn: Set index register
         else if opcode & 0xF000 == 0xA000 {
             return Some(Opcode::SetIndexRegister { value: opcode & 0x0FFF });
@@ -174,6 +181,13 @@ mod chip8 {
                         if r1_value == r2_value {
                             self.program_counter += 2;
                         }
+                    },
+                    Opcode::SetRegister { register, value } => {
+                        if register > 15 {
+                            panic!("Register index out of range: {} > 15", register);
+                        }
+
+                        self.registers[register] = value;
                     },
                     Opcode::SetIndexRegister { value } => self.index_register = value,
                     _ => panic!("unimplemented opcode {:?} (raw: {})", decoded_opcode, opcode),
@@ -311,6 +325,16 @@ mod chip8 {
                 vm.step();
                 assert_eq!(vm.program_counter, 0x0004);
             }
+
+            #[test]
+            fn set_register() {
+                let mut vm = Chip8::new();
+                vm.memory[0] = 0x60;
+                vm.memory[1] = 0xFF;
+                vm.program_counter = 0x0000;
+                vm.step();
+                assert_eq!(vm.registers[0], 0xFF);
+            }
         }
 
         mod opcode_decoding {
@@ -387,6 +411,20 @@ mod chip8 {
 
                 match decoded_opcode {
                     Some(Opcode::SetIndexRegister { value }) => assert_eq!(value, 0x0428),
+                    _ => panic!("decoded wrong opcode {:?}", decoded_opcode)
+                }
+            }
+
+            #[test]
+            fn set_register() {
+                let opcode = 0x6E72;
+                let decoded_opcode = decode_opcode(opcode);
+
+                match decoded_opcode {
+                    Some(Opcode::SetRegister { register, value }) => {
+                        assert_eq!(register, 0x0E);
+                        assert_eq!(value, 0x72);
+                    },
                     _ => panic!("decoded wrong opcode {:?}", decoded_opcode)
                 }
             }
