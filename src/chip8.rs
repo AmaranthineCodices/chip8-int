@@ -97,6 +97,27 @@ mod chip8 {
                 source: ((opcode & 0x00F0) >> 4) as usize,
             })
         }
+        // 0x8xy1: Bitwise OR on Vx and Vy; result stored in Vx
+        else if opcode & 0xF00F == 0x8001 {
+            return Some(Opcode::BitOr {
+                target: ((opcode & 0x0F00) >> 8) as usize,
+                other: ((opcode & 0x00F0) >> 4) as usize,
+            })
+        }
+        // 0x8xy2: Bitwise AND on Vx and Vy; result stored in Vx
+        else if opcode & 0xF00F == 0x8002 {
+            return Some(Opcode::BitAnd {
+                target: ((opcode & 0x0F00) >> 8) as usize,
+                other: ((opcode & 0x00F0) >> 4) as usize,
+            })
+        }
+        // 0x8xy3: Bitwise XOR on Vx and Vy; result stored in Vx
+        else if opcode & 0xF00F == 0x8003 {
+            return Some(Opcode::BitXor {
+                target: ((opcode & 0x0F00) >> 8) as usize,
+                other: ((opcode & 0x00F0) >> 4) as usize,
+            })
+        }
         // 0xAnnn: Set index register
         else if opcode & 0xF000 == 0xA000 {
             return Some(Opcode::SetIndexRegister { value: opcode & 0x0FFF });
@@ -223,6 +244,39 @@ mod chip8 {
                         }
 
                         self.registers[target] = self.registers[source];
+                    },
+                    Opcode::BitOr { target, other } => {
+                        if target > 15 {
+                            panic!("Register index out of range: {} > 15", target);
+                        }
+
+                        if other > 15 {
+                            panic!("Register index out of range: {} > 15", other);
+                        }
+
+                        self.registers[target] = self.registers[target] | self.registers[other];
+                    },
+                    Opcode::BitAnd { target, other } => {
+                        if target > 15 {
+                            panic!("Register index out of range: {} > 15", target);
+                        }
+
+                        if other > 15 {
+                            panic!("Register index out of range: {} > 15", other);
+                        }
+
+                        self.registers[target] = self.registers[target] & self.registers[other];
+                    },
+                    Opcode::BitXor { target, other } => {
+                        if target > 15 {
+                            panic!("Register index out of range: {} > 15", target);
+                        }
+
+                        if other > 15 {
+                            panic!("Register index out of range: {} > 15", other);
+                        }
+
+                        self.registers[target] = self.registers[target] ^ self.registers[other];
                     },
                     Opcode::SetIndexRegister { value } => self.index_register = value,
                     _ => panic!("unimplemented opcode {:?} (raw: {})", decoded_opcode, opcode),
@@ -393,6 +447,42 @@ mod chip8 {
                 vm.step();
                 assert_eq!(vm.registers[0], 0xFF);
             }
+
+            #[test]
+            fn bit_or() {
+                let mut vm = Chip8::new();
+                vm.memory[0] = 0x80;
+                vm.memory[1] = 0x11;
+                vm.registers[0] = 0x13;
+                vm.registers[1] = 0xC4;
+                vm.program_counter = 0x0000;
+                vm.step();
+                assert_eq!(vm.registers[0], 0x13 | 0xC4);
+            }
+
+            #[test]
+            fn bit_and() {
+                let mut vm = Chip8::new();
+                vm.memory[0] = 0x80;
+                vm.memory[1] = 0x12;
+                vm.registers[0] = 0x13;
+                vm.registers[1] = 0xC4;
+                vm.program_counter = 0x0000;
+                vm.step();
+                assert_eq!(vm.registers[0], 0x13 & 0xC4);
+            }
+
+            #[test]
+            fn bit_xor() {
+                let mut vm = Chip8::new();
+                vm.memory[0] = 0x80;
+                vm.memory[1] = 0x13;
+                vm.registers[0] = 0x13;
+                vm.registers[1] = 0xC4;
+                vm.program_counter = 0x0000;
+                vm.step();
+                assert_eq!(vm.registers[0], 0x13 ^ 0xC4);
+            }
         }
 
         mod opcode_decoding {
@@ -510,6 +600,48 @@ mod chip8 {
                     Some(Opcode::CopyRegister { target, source }) => {
                         assert_eq!(target, 0x03);
                         assert_eq!(source, 0x07);
+                    },
+                    _ => panic!("decoded wrong opcode {:?}", decoded_opcode)
+                }
+            }
+
+            #[test]
+            fn bit_or() {
+                let opcode = 0x8371;
+                let decoded_opcode = decode_opcode(opcode);
+
+                match decoded_opcode {
+                    Some(Opcode::BitOr { target, other }) => {
+                        assert_eq!(target, 0x03);
+                        assert_eq!(other, 0x07);
+                    },
+                    _ => panic!("decoded wrong opcode {:?}", decoded_opcode)
+                }
+            }
+
+            #[test]
+            fn bit_and() {
+                let opcode = 0x8372;
+                let decoded_opcode = decode_opcode(opcode);
+
+                match decoded_opcode {
+                    Some(Opcode::BitAnd { target, other }) => {
+                        assert_eq!(target, 0x03);
+                        assert_eq!(other, 0x07);
+                    },
+                    _ => panic!("decoded wrong opcode {:?}", decoded_opcode)
+                }
+            }
+
+            #[test]
+            fn bit_xor() {
+                let opcode = 0x8373;
+                let decoded_opcode = decode_opcode(opcode);
+
+                match decoded_opcode {
+                    Some(Opcode::BitXor { target, other }) => {
+                        assert_eq!(target, 0x03);
+                        assert_eq!(other, 0x07);
                     },
                     _ => panic!("decoded wrong opcode {:?}", decoded_opcode)
                 }
