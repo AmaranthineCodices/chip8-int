@@ -243,6 +243,74 @@ mod chip8 {
 
                 assert_eq!(vm.index_register, 0x0387);
             }
+
+            #[test]
+            fn skip_if_eq_const() {
+                let mut vm = Chip8::new();
+                vm.memory[0] = 0x3A;
+                vm.memory[1] = 0x32;
+                // Scenario 1: register A is 0, but we expect 0x32.
+                // This will not skip the next instruction. The program
+                // counter can thus be expected to be 0x0002.
+                vm.program_counter = 0x0000;
+                vm.step();
+                assert_eq!(vm.program_counter, 0x0002);
+                
+                // Reset the program counter.
+                vm.program_counter = 0x0000;
+                // Scenario 2: register A is now 0x32, and we expect
+                // 0x32. This *will* skip the next instruction. The
+                // program counter should be 0x0004.
+                vm.registers[0x0A] = 0x32;
+                vm.step();
+                assert_eq!(vm.program_counter, 0x0004);
+            }
+
+            #[test]
+            fn skip_if_not_eq_const() {
+                // This test is the reverse of skip_if_eq_const.
+                let mut vm = Chip8::new();
+                vm.memory[0] = 0x4A;
+                vm.memory[1] = 0x32;
+                // Scenario 1: register A is 0, but we expect 0x32.
+                // This will skip the next instruction. The program
+                // counter can thus be expected to be 0x0004.
+                vm.program_counter = 0x0000;
+                vm.step();
+                assert_eq!(vm.program_counter, 0x0004);
+                
+                // Reset the program counter.
+                vm.program_counter = 0x0000;
+                // Scenario 2: register A is now 0x32, and we expect
+                // 0x32. This will not skip the next instruction. The
+                // program counter should be 0x0002.
+                vm.registers[0x0A] = 0x32;
+                vm.step();
+                assert_eq!(vm.program_counter, 0x0002);
+            }
+
+            #[test]
+            fn skip_if_registers_eq() {
+                let mut vm = Chip8::new();
+                vm.memory[0] = 0x5A;
+                vm.memory[1] = 0xB0;
+                vm.registers[0x0B] = 0x0F;
+                // Scenario 1: register A is 0 and register B is 0x0F.
+                // The next instruction should not be skipped; program_counter
+                // should be 0x0002.
+                vm.program_counter = 0x0000;
+                vm.step();
+                assert_eq!(vm.program_counter, 0x0002);
+                
+                // Reset the program counter.
+                vm.program_counter = 0x0000;
+                // Scenario 2: register A is now 0x0F, the same as
+                // register B. This *will* skip the next instruction - the
+                // program counter should be 0x0004.
+                vm.registers[0x0A] = 0x0F;
+                vm.step();
+                assert_eq!(vm.program_counter, 0x0004);
+            }
         }
 
         mod opcode_decoding {
