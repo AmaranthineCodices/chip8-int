@@ -34,8 +34,44 @@ mod chip8 {
         AddRegister { target: usize, other: usize },
         // Subtract a register's value from another register's value. VF is set to 0 if borrow and 1 if no borrow.
         SubtractRegister { target: usize, other: usize },
+        // Alternative semantics for subtraction.
+        AltSubtractRegister { target: usize, other: usize },
+        // Shift a register's value to the left by one and store the result in another register.
+        LeftShift { target: usize, source: usize },
+        // Shift a register's value to the right by one and store the result in another register.
+        RightShift { target: usize, source: usize },
+        // Skip if register value != other register value
+        SkipIfRegistersNotEqual { register1: usize, register2: usize },
         // 0xAnnn: Sets the index register to a value
         SetIndexRegister { value: u16 },
+        // Jump to address offset by register value of V0
+        OffsetJump { address: u16 },
+        // Generate a random number, take the bitwise AND of it, and store the result in a register
+        Rand { mask: u8, register: usize },
+        // Display a sprite from memory.
+        Display { x: usize, y: usize, height: u8 },
+        // Skip if a key is pressed.
+        SkipIfKeyPressed { key: usize },
+        // Skip if a key is not pressed.
+        SkipIfKeyNotPressed { key: usize },
+        // Get delay timer value and store it in a register.
+        GetDelayTimer { register: usize },
+        // Await a key press.
+        AwaitKeypress { register: usize },
+        // Set delay timer.
+        SetDelayTimer { value: u16 },
+        // Set sound timer.
+        SetSoundTimer { value: u16 },
+        // Increment index register by a register's value.
+        IncrementIndexRegister { register: usize },
+        // Set index register to a font character in a register
+        SetIndexToFont { register: usize },
+        // Store binary-coded decimal repr. of a register based on the index register
+        StoreDecimal { register: usize },
+        // Dump registers to memory starting at the index register
+        MemDump { max_register: usize },
+        // Load registers from memory
+        MemLoad { max_register: usize },
     }
 
     fn decode_opcode(opcode: u16) -> Option<Opcode> {
