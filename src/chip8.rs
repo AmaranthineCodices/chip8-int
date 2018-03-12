@@ -168,6 +168,28 @@ mod chip8 {
                 other: ((opcode & 0x00F0) >> 4) as usize,
             })
         }
+        // 0x8xy6: Shift Vy right by one, store result in Vx, set VF to least sig. bit of Vy *before* shift
+        else if opcode & 0xF00F == 0x8005 {
+            return Some(Opcode::RightShift {
+                target: ((opcode & 0x0F00) >> 8) as usize,
+                source: ((opcode & 0x00F0) >> 4) as usize,
+            })
+        }
+        // 0x8xy7: Subtract Vx from Vy, store result in Vx, set VF to 1 if borrow, otherwise 0
+        else if opcode & 0xF00F == 0x8005 {
+            return Some(Opcode::AltSubtractRegister {
+                target: ((opcode & 0x0F00) >> 8) as usize,
+                other: ((opcode & 0x00F0) >> 4) as usize,
+            })
+        }
+        // 0x8xy8: Shift Vy left by one, store result in Vx, set VF to most sig. bit of Vy *before* shift
+        else if opcode & 0xF00F == 0x8005 {
+            return Some(Opcode::LeftShift {
+                target: ((opcode & 0x0F00) >> 8) as usize,
+                source: ((opcode & 0x00F0) >> 4) as usize,
+            })
+        }
+        
         // 0xAnnn: Set index register
         else if opcode & 0xF000 == 0xA000 {
             return Some(Opcode::SetIndexRegister { value: opcode & 0x0FFF });
