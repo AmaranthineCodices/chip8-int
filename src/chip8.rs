@@ -118,6 +118,20 @@ mod chip8 {
                 other: ((opcode & 0x00F0) >> 4) as usize,
             })
         }
+        // 0x8xy4: Add Vy to Vx; set VF to 1 if carry, otherwise 0
+        else if opcode & 0xF00F == 0x8004 {
+            return Some(Opcode::AddRegister {
+                target: ((opcode & 0x0F00) >> 8) as usize,
+                other: ((opcode & 0x00F0) >> 4) as usize,
+            })
+        }
+        // 0x8xy5: Subtract Vy from Vx; set VF to 1 if borrow, otherwise 0
+        else if opcode & 0xF00F == 0x8005 {
+            return Some(Opcode::SubtractRegister {
+                target: ((opcode & 0x0F00) >> 8) as usize,
+                other: ((opcode & 0x00F0) >> 4) as usize,
+            })
+        }
         // 0xAnnn: Set index register
         else if opcode & 0xF000 == 0xA000 {
             return Some(Opcode::SetIndexRegister { value: opcode & 0x0FFF });
@@ -277,6 +291,54 @@ mod chip8 {
                         }
 
                         self.registers[target] = self.registers[target] ^ self.registers[other];
+                    },
+                    Opcode::AddRegister { target, other } => {
+                        if target > 15 {
+                            panic!("Register index out of range: {} > 15", target);
+                        }
+
+                        if other > 15 {
+                            panic!("Register index out of range: {} > 15", other);
+                        }
+
+                        let target_value = self.registers[target];
+                        let other_value = self.registers[other];
+
+                        // Unsigned binary arithmetic; overflow means a carry.
+                        if let Some(result) = target_value.checked_add(other_value) {
+                            // No carry.
+                            self.registers[target] = result;
+                            self.registers[0xF] = 0;
+                        }
+                        else {
+                            // Carry occurred.
+                            self.registers[target] = target_value.wrapping_add(other_value);
+                            self.registers[0xF] = 1;
+                        }
+                    },
+                    Opcode::SubtractRegister { target, other } => {
+                        if target > 15 {
+                            panic!("Register index out of range: {} > 15", target);
+                        }
+
+                        if other > 15 {
+                            panic!("Register index out of range: {} > 15", other);
+                        }
+
+                        let target_value = self.registers[target];
+                        let other_value = self.registers[other];
+
+                        // Unsigned binary arithmetic; underflow means a borrow.
+                        if let Some(result) = target_value.checked_sub(other_value) {
+                            // No borrow.
+                            self.registers[target] = result;
+                            self.registers[0xF] = 0;
+                        }
+                        else {
+                            // Borrow occurred.
+                            self.registers[target] = target_value.wrapping_sub(other_value);
+                            self.registers[0xF] = 1;
+                        }
                     },
                     Opcode::SetIndexRegister { value } => self.index_register = value,
                     _ => panic!("unimplemented opcode {:?} (raw: {})", decoded_opcode, opcode),
@@ -483,6 +545,46 @@ mod chip8 {
                 vm.step();
                 assert_eq!(vm.registers[0], 0x13 ^ 0xC4);
             }
+
+            #[test]
+            fn register_add() {
+                let mut vm = Chip8::new();
+                vm.memory[0] = 0x80;
+                vm.memory[1] = 0x14;
+                vm.memory[2] = 0x82;
+                vm.memory[3] = 0x34;
+                vm.registers[0] = 0x13;
+                vm.registers[1] = 0xC4;
+                vm.registers[2] = 0xFF;
+                vm.registers[3] = 0xD9;
+                vm.program_counter = 0x0000;
+                vm.step();
+                assert_eq!(vm.registers[0], 0x13 + 0xC4);
+                assert_eq!(vm.registers[0xF], 0);
+                vm.step();
+                assert_eq!(vm.registers[2], 0xD8);
+                assert_eq!(vm.registers[0xF], 1);
+            }
+
+            #[test]
+            fn register_sub() {
+                let mut vm = Chip8::new();
+                vm.memory[0] = 0x80;
+                vm.memory[1] = 0x15;
+                vm.memory[2] = 0x82;
+                vm.memory[3] = 0x35;
+                vm.registers[0] = 0x13;
+                vm.registers[1] = 0xC4;
+                vm.registers[2] = 0x13;
+                vm.registers[3] = 0x11;
+                vm.program_counter = 0x0000;
+                vm.step();
+                assert_eq!(vm.registers[0], 0x4F);
+                assert_eq!(vm.registers[0xF], 1);
+                vm.step();
+                assert_eq!(vm.registers[2], 0x02);
+                assert_eq!(vm.registers[0xF], 0);
+            }
         }
 
         mod opcode_decoding {
@@ -640,6 +742,34 @@ mod chip8 {
 
                 match decoded_opcode {
                     Some(Opcode::BitXor { target, other }) => {
+                        assert_eq!(target, 0x03);
+                        assert_eq!(other, 0x07);
+                    },
+                    _ => panic!("decoded wrong opcode {:?}", decoded_opcode)
+                }
+            }
+
+            #[test]
+            fn register_add() {
+                let opcode = 0x8374;
+                let decoded_opcode = decode_opcode(opcode);
+
+                match decoded_opcode {
+                    Some(Opcode::AddRegister { target, other }) => {
+                        assert_eq!(target, 0x03);
+                        assert_eq!(other, 0x07);
+                    },
+                    _ => panic!("decoded wrong opcode {:?}", decoded_opcode)
+                }
+            }
+
+            #[test]
+            fn register_sub() {
+                let opcode = 0x8375;
+                let decoded_opcode = decode_opcode(opcode);
+
+                match decoded_opcode {
+                    Some(Opcode::SubtractRegister { target, other }) => {
                         assert_eq!(target, 0x03);
                         assert_eq!(other, 0x07);
                     },
