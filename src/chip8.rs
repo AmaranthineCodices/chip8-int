@@ -624,78 +624,58 @@ mod chip8 {
             #[test]
             fn add_const() {
                 let mut vm = Chip8::new();
-                vm.memory[0] = 0x70;
-                vm.memory[1] = 0x23;
                 vm.registers[0] = 0x13;
-                vm.program_counter = 0x0000;
-                vm.step();
+                vm.execute_opcode(Opcode::AddConstant { register: 0, value: 0x23 });
                 assert_eq!(vm.registers[0], 0x23 + 0x13);
             }
 
             #[test]
             fn copy_register() {
                 let mut vm = Chip8::new();
-                vm.memory[0] = 0x80;
-                vm.memory[1] = 0x10;
                 vm.registers[0] = 0x13;
                 vm.registers[1] = 0xFF;
-                vm.program_counter = 0x0000;
-                vm.step();
+                vm.execute_opcode(Opcode::CopyRegister { source: 1, target: 0 });
                 assert_eq!(vm.registers[0], 0xFF);
             }
 
             #[test]
             fn bit_or() {
                 let mut vm = Chip8::new();
-                vm.memory[0] = 0x80;
-                vm.memory[1] = 0x11;
                 vm.registers[0] = 0x13;
                 vm.registers[1] = 0xC4;
-                vm.program_counter = 0x0000;
-                vm.step();
+                vm.execute_opcode(Opcode::BitOr { target: 0, other: 1 });
                 assert_eq!(vm.registers[0], 0x13 | 0xC4);
             }
 
             #[test]
             fn bit_and() {
                 let mut vm = Chip8::new();
-                vm.memory[0] = 0x80;
-                vm.memory[1] = 0x12;
                 vm.registers[0] = 0x13;
                 vm.registers[1] = 0xC4;
-                vm.program_counter = 0x0000;
-                vm.step();
+                vm.execute_opcode(Opcode::BitAnd { target: 0, other: 1 });
                 assert_eq!(vm.registers[0], 0x13 & 0xC4);
             }
 
             #[test]
             fn bit_xor() {
                 let mut vm = Chip8::new();
-                vm.memory[0] = 0x80;
-                vm.memory[1] = 0x13;
                 vm.registers[0] = 0x13;
                 vm.registers[1] = 0xC4;
-                vm.program_counter = 0x0000;
-                vm.step();
+                vm.execute_opcode(Opcode::BitXor { target: 0, other: 1 });
                 assert_eq!(vm.registers[0], 0x13 ^ 0xC4);
             }
 
             #[test]
             fn register_add() {
                 let mut vm = Chip8::new();
-                vm.memory[0] = 0x80;
-                vm.memory[1] = 0x14;
-                vm.memory[2] = 0x82;
-                vm.memory[3] = 0x34;
                 vm.registers[0] = 0x13;
                 vm.registers[1] = 0xC4;
                 vm.registers[2] = 0xFF;
                 vm.registers[3] = 0xD9;
-                vm.program_counter = 0x0000;
-                vm.step();
+                vm.execute_opcode(Opcode::AddRegister { target: 0, other: 1 });
                 assert_eq!(vm.registers[0], 0x13 + 0xC4);
                 assert_eq!(vm.registers[0xF], 0);
-                vm.step();
+                vm.execute_opcode(Opcode::AddRegister { target: 2, other: 3 });
                 assert_eq!(vm.registers[2], 0xD8);
                 assert_eq!(vm.registers[0xF], 1);
             }
@@ -703,19 +683,14 @@ mod chip8 {
             #[test]
             fn register_sub() {
                 let mut vm = Chip8::new();
-                vm.memory[0] = 0x80;
-                vm.memory[1] = 0x15;
-                vm.memory[2] = 0x82;
-                vm.memory[3] = 0x35;
                 vm.registers[0] = 0x13;
                 vm.registers[1] = 0xC4;
                 vm.registers[2] = 0x13;
                 vm.registers[3] = 0x11;
-                vm.program_counter = 0x0000;
-                vm.step();
+                vm.execute_opcode(Opcode::SubtractRegister { target: 0, other: 1 });
                 assert_eq!(vm.registers[0], 0x4F);
                 assert_eq!(vm.registers[0xF], 1);
-                vm.step();
+                vm.execute_opcode(Opcode::SubtractRegister { target: 2, other: 3 });
                 assert_eq!(vm.registers[2], 0x02);
                 assert_eq!(vm.registers[0xF], 0);
             }
