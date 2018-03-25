@@ -320,6 +320,163 @@ mod chip8 {
             }
         }
 
+        fn execute_opcode(&mut self, opcode: Opcode) {
+            match opcode {
+                Opcode::Jump { address } => self.program_counter = address,
+                Opcode::SkipIfEqual { register, value } => {
+                    if register > 15 {
+                        panic!("Register index out of range: {} > 15", register);
+                    }
+                    
+                    let register_value = self.registers[register];
+
+                    if register_value == value {
+                        // Skip the next instruction
+                        self.program_counter += 2;
+                    }
+                },
+                Opcode::SkipIfNotEqual { register, value } => {
+                    if register > 15 {
+                        panic!("Register index out of range: {} > 15", register);
+                    }
+                    
+                    let register_value = self.registers[register];
+
+                    if register_value != value {
+                        // Skip the next instruction
+                        self.program_counter += 2;
+                    }
+                },
+                Opcode::SkipIfRegistersEqual { register1, register2 } => {
+                    if register1 > 15 {
+                        panic!("Register index out of range: {} > 15", register1);
+                    }
+
+                    if register2 > 15 {
+                        panic!("Register index out of range: {} > 15", register2);
+                    }
+
+                    let r1_value = self.registers[register1];
+                    let r2_value = self.registers[register2];
+                    
+                    if r1_value == r2_value {
+                        self.program_counter += 2;
+                    }
+                },
+                Opcode::SetRegister { register, value } => {
+                    if register > 15 {
+                        panic!("Register index out of range: {} > 15", register);
+                    }
+
+                    self.registers[register] = value;
+                },
+                Opcode::AddConstant { register, value } => {
+                    if register > 15 {
+                        panic!("Register index out of range: {} > 15", register);
+                    }
+
+                    let register_value = self.registers[register];
+                    // Unsure: Is wrapping_add or clamping at max the correct behavior?
+                    let sum = register_value.wrapping_add(value);
+                    self.registers[register] = sum;
+                },
+                Opcode::CopyRegister { target, source } => {
+                    if target > 15 {
+                        panic!("Register index out of range: {} > 15", target);
+                    }
+
+                    if source > 15 {
+                        panic!("Register index out of range: {} > 15", source);
+                    }
+
+                    self.registers[target] = self.registers[source];
+                },
+                Opcode::BitOr { target, other } => {
+                    if target > 15 {
+                        panic!("Register index out of range: {} > 15", target);
+                    }
+
+                    if other > 15 {
+                        panic!("Register index out of range: {} > 15", other);
+                    }
+
+                    self.registers[target] = self.registers[target] | self.registers[other];
+                },
+                Opcode::BitAnd { target, other } => {
+                    if target > 15 {
+                        panic!("Register index out of range: {} > 15", target);
+                    }
+
+                    if other > 15 {
+                        panic!("Register index out of range: {} > 15", other);
+                    }
+
+                    self.registers[target] = self.registers[target] & self.registers[other];
+                },
+                Opcode::BitXor { target, other } => {
+                    if target > 15 {
+                        panic!("Register index out of range: {} > 15", target);
+                    }
+
+                    if other > 15 {
+                        panic!("Register index out of range: {} > 15", other);
+                    }
+
+                    self.registers[target] = self.registers[target] ^ self.registers[other];
+                },
+                Opcode::AddRegister { target, other } => {
+                    if target > 15 {
+                        panic!("Register index out of range: {} > 15", target);
+                    }
+
+                    if other > 15 {
+                        panic!("Register index out of range: {} > 15", other);
+                    }
+
+                    let target_value = self.registers[target];
+                    let other_value = self.registers[other];
+
+                    // Unsigned binary arithmetic; overflow means a carry.
+                    if let Some(result) = target_value.checked_add(other_value) {
+                        // No carry.
+                        self.registers[target] = result;
+                        self.registers[0xF] = 0;
+                    }
+                    else {
+                        // Carry occurred.
+                        self.registers[target] = target_value.wrapping_add(other_value);
+                        self.registers[0xF] = 1;
+                    }
+                },
+                Opcode::SubtractRegister { target, other } => {
+                    if target > 15 {
+                        panic!("Register index out of range: {} > 15", target);
+                    }
+
+                    if other > 15 {
+                        panic!("Register index out of range: {} > 15", other);
+                    }
+
+                    let target_value = self.registers[target];
+                    let other_value = self.registers[other];
+
+                    // Unsigned binary arithmetic; underflow means a borrow.
+                    if let Some(result) = target_value.checked_sub(other_value) {
+                        // No borrow.
+                        self.registers[target] = result;
+                        self.registers[0xF] = 0;
+                    }
+                    else {
+                        // Borrow occurred.
+                        self.registers[target] = target_value.wrapping_sub(other_value);
+                        self.registers[0xF] = 1;
+                    }
+                },
+                Opcode::SetIndexRegister { value } => self.index_register = value,
+                _ => panic!("unimplemented opcode {:?}", opcode),
+            }
+        }
+
         fn process_next_opcode(&mut self) {
             // Fetch latest opcode.
             // Opcode is located in memory at the program_counter index
@@ -338,160 +495,7 @@ mod chip8 {
             // decode_opcode can return None; in the interests of making testing, etc. easier
             // this is not handled at all.
             if let Some(decoded_opcode) = decode_opcode(opcode) {
-                match decoded_opcode {
-                    Opcode::Jump { address } => self.program_counter = address,
-                    Opcode::SkipIfEqual { register, value } => {
-                        if register > 15 {
-                            panic!("Register index out of range: {} > 15", register);
-                        }
-                        
-                        let register_value = self.registers[register];
-
-                        if register_value == value {
-                            // Skip the next instruction
-                            self.program_counter += 2;
-                        }
-                    },
-                    Opcode::SkipIfNotEqual { register, value } => {
-                        if register > 15 {
-                            panic!("Register index out of range: {} > 15", register);
-                        }
-                        
-                        let register_value = self.registers[register];
-
-                        if register_value != value {
-                            // Skip the next instruction
-                            self.program_counter += 2;
-                        }
-                    },
-                    Opcode::SkipIfRegistersEqual { register1, register2 } => {
-                        if register1 > 15 {
-                            panic!("Register index out of range: {} > 15", register1);
-                        }
-
-                        if register2 > 15 {
-                            panic!("Register index out of range: {} > 15", register2);
-                        }
-
-                        let r1_value = self.registers[register1];
-                        let r2_value = self.registers[register2];
-                        
-                        if r1_value == r2_value {
-                            self.program_counter += 2;
-                        }
-                    },
-                    Opcode::SetRegister { register, value } => {
-                        if register > 15 {
-                            panic!("Register index out of range: {} > 15", register);
-                        }
-
-                        self.registers[register] = value;
-                    },
-                    Opcode::AddConstant { register, value } => {
-                        if register > 15 {
-                            panic!("Register index out of range: {} > 15", register);
-                        }
-
-                        let register_value = self.registers[register];
-                        // Unsure: Is wrapping_add or clamping at max the correct behavior?
-                        let sum = register_value.wrapping_add(value);
-                        self.registers[register] = sum;
-                    },
-                    Opcode::CopyRegister { target, source } => {
-                        if target > 15 {
-                            panic!("Register index out of range: {} > 15", target);
-                        }
-
-                        if source > 15 {
-                            panic!("Register index out of range: {} > 15", source);
-                        }
-
-                        self.registers[target] = self.registers[source];
-                    },
-                    Opcode::BitOr { target, other } => {
-                        if target > 15 {
-                            panic!("Register index out of range: {} > 15", target);
-                        }
-
-                        if other > 15 {
-                            panic!("Register index out of range: {} > 15", other);
-                        }
-
-                        self.registers[target] = self.registers[target] | self.registers[other];
-                    },
-                    Opcode::BitAnd { target, other } => {
-                        if target > 15 {
-                            panic!("Register index out of range: {} > 15", target);
-                        }
-
-                        if other > 15 {
-                            panic!("Register index out of range: {} > 15", other);
-                        }
-
-                        self.registers[target] = self.registers[target] & self.registers[other];
-                    },
-                    Opcode::BitXor { target, other } => {
-                        if target > 15 {
-                            panic!("Register index out of range: {} > 15", target);
-                        }
-
-                        if other > 15 {
-                            panic!("Register index out of range: {} > 15", other);
-                        }
-
-                        self.registers[target] = self.registers[target] ^ self.registers[other];
-                    },
-                    Opcode::AddRegister { target, other } => {
-                        if target > 15 {
-                            panic!("Register index out of range: {} > 15", target);
-                        }
-
-                        if other > 15 {
-                            panic!("Register index out of range: {} > 15", other);
-                        }
-
-                        let target_value = self.registers[target];
-                        let other_value = self.registers[other];
-
-                        // Unsigned binary arithmetic; overflow means a carry.
-                        if let Some(result) = target_value.checked_add(other_value) {
-                            // No carry.
-                            self.registers[target] = result;
-                            self.registers[0xF] = 0;
-                        }
-                        else {
-                            // Carry occurred.
-                            self.registers[target] = target_value.wrapping_add(other_value);
-                            self.registers[0xF] = 1;
-                        }
-                    },
-                    Opcode::SubtractRegister { target, other } => {
-                        if target > 15 {
-                            panic!("Register index out of range: {} > 15", target);
-                        }
-
-                        if other > 15 {
-                            panic!("Register index out of range: {} > 15", other);
-                        }
-
-                        let target_value = self.registers[target];
-                        let other_value = self.registers[other];
-
-                        // Unsigned binary arithmetic; underflow means a borrow.
-                        if let Some(result) = target_value.checked_sub(other_value) {
-                            // No borrow.
-                            self.registers[target] = result;
-                            self.registers[0xF] = 0;
-                        }
-                        else {
-                            // Borrow occurred.
-                            self.registers[target] = target_value.wrapping_sub(other_value);
-                            self.registers[0xF] = 1;
-                        }
-                    },
-                    Opcode::SetIndexRegister { value } => self.index_register = value,
-                    _ => panic!("unimplemented opcode {:?} (raw: {})", decoded_opcode, opcode),
-                }
+                self.execute_opcode(decoded_opcode);
             }
         }
 
@@ -539,100 +543,81 @@ mod chip8 {
             #[test]
             fn jump() {
                 let mut vm = Chip8::new();
-                vm.memory[0] = 0x19;
-                vm.memory[1] = 0xDE;
-                vm.program_counter = 0x0000;
-                vm.step();
-
+                vm.execute_opcode(Opcode::Jump { address: 0x09DE });
                 assert_eq!(vm.program_counter, 0x09DE);
             }
 
             #[test]
             fn set_idx_reg() {
                 let mut vm = Chip8::new();
-                vm.memory[0] = 0xA3;
-                vm.memory[1] = 0x87;
-                vm.program_counter = 0x0000;
-                vm.step();
-
+                vm.execute_opcode(Opcode::SetIndexRegister { value: 0x0387 });
                 assert_eq!(vm.index_register, 0x0387);
             }
 
             #[test]
             fn skip_if_eq_const() {
                 let mut vm = Chip8::new();
-                vm.memory[0] = 0x3A;
-                vm.memory[1] = 0x32;
+                vm.execute_opcode(Opcode::SkipIfEqual { register: 0xA, value: 0x32 });
                 // Scenario 1: register A is 0, but we expect 0x32.
                 // This will not skip the next instruction. The program
-                // counter can thus be expected to be 0x0002.
-                vm.program_counter = 0x0000;
-                vm.step();
-                assert_eq!(vm.program_counter, 0x0002);
+                // counter can thus be expected to be 0x0000.
+                assert_eq!(vm.program_counter, 0x0000);
                 
                 // Reset the program counter.
                 vm.program_counter = 0x0000;
                 // Scenario 2: register A is now 0x32, and we expect
                 // 0x32. This *will* skip the next instruction. The
-                // program counter should be 0x0004.
+                // program counter should be 0x0002.
                 vm.registers[0x0A] = 0x32;
-                vm.step();
-                assert_eq!(vm.program_counter, 0x0004);
+                vm.execute_opcode(Opcode::SkipIfEqual { register: 0xA, value: 0x32 });
+                assert_eq!(vm.program_counter, 0x0002);
             }
 
             #[test]
             fn skip_if_not_eq_const() {
                 // This test is the reverse of skip_if_eq_const.
                 let mut vm = Chip8::new();
-                vm.memory[0] = 0x4A;
-                vm.memory[1] = 0x32;
+                vm.execute_opcode(Opcode::SkipIfNotEqual { register: 0xA, value: 0x32 });
                 // Scenario 1: register A is 0, but we expect 0x32.
                 // This will skip the next instruction. The program
-                // counter can thus be expected to be 0x0004.
-                vm.program_counter = 0x0000;
-                vm.step();
-                assert_eq!(vm.program_counter, 0x0004);
+                // counter can thus be expected to be 0x0002.
+                assert_eq!(vm.program_counter, 0x0002);
                 
                 // Reset the program counter.
                 vm.program_counter = 0x0000;
                 // Scenario 2: register A is now 0x32, and we expect
                 // 0x32. This will not skip the next instruction. The
-                // program counter should be 0x0002.
+                // program counter should be 0x0000.
                 vm.registers[0x0A] = 0x32;
-                vm.step();
-                assert_eq!(vm.program_counter, 0x0002);
+                vm.execute_opcode(Opcode::SkipIfNotEqual { register: 0xA, value: 0x32 });
+                assert_eq!(vm.program_counter, 0x0000);
             }
 
             #[test]
             fn skip_if_registers_eq() {
                 let mut vm = Chip8::new();
-                vm.memory[0] = 0x5A;
-                vm.memory[1] = 0xB0;
-                vm.registers[0x0B] = 0x0F;
+                vm.registers[0xA] = 0x0;
+                vm.registers[0xB] = 0xF;
+                vm.execute_opcode(Opcode::SkipIfRegistersEqual { register1: 0xA, register2: 0xB });
                 // Scenario 1: register A is 0 and register B is 0x0F.
                 // The next instruction should not be skipped; program_counter
-                // should be 0x0002.
-                vm.program_counter = 0x0000;
-                vm.step();
-                assert_eq!(vm.program_counter, 0x0002);
+                // should be 0x0000.
+                assert_eq!(vm.program_counter, 0x0000);
                 
                 // Reset the program counter.
                 vm.program_counter = 0x0000;
                 // Scenario 2: register A is now 0x0F, the same as
                 // register B. This *will* skip the next instruction - the
-                // program counter should be 0x0004.
-                vm.registers[0x0A] = 0x0F;
-                vm.step();
-                assert_eq!(vm.program_counter, 0x0004);
+                // program counter should be 0x0002.
+                vm.registers[0xA] = 0x0F;
+                vm.execute_opcode(Opcode::SkipIfRegistersEqual { register1: 0xA, register2: 0xB });
+                assert_eq!(vm.program_counter, 0x0002);
             }
 
             #[test]
             fn set_register() {
                 let mut vm = Chip8::new();
-                vm.memory[0] = 0x60;
-                vm.memory[1] = 0xFF;
-                vm.program_counter = 0x0000;
-                vm.step();
+                vm.execute_opcode(Opcode::SetRegister { register: 0x0, value: 0xFF });
                 assert_eq!(vm.registers[0], 0xFF);
             }
 
