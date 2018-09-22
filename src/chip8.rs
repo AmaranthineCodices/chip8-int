@@ -3,7 +3,7 @@ mod chip8 {
     const GFX_SIZE_X: usize = 64;
     const GFX_SIZE_Y: usize = 32;
 
-    #[derive(Debug)]
+    #[derive(Debug, PartialEq)]
     pub enum Opcode {
         // Not defined: opcode 0NNN (call RCA 1802 program).
         ClearDisplay,
@@ -699,431 +699,56 @@ mod chip8 {
         mod opcode_decoding {
             use super::*;
 
-            #[test]
-            fn jump() {
-                let opcode = 0x19DE;
-                let decoded_opcode = decode_opcode(opcode);
-
-                match decoded_opcode {
-                    Some(Opcode::Jump { address }) => assert_eq!(address, 0x09DE),
-                    _ => panic!("decoded wrong opcode {:?}", decoded_opcode)
-                }
+            macro_rules! decodes_to {
+                ($opcode:expr => $expected:expr) => (
+                    {
+                        match decode_opcode($opcode) {
+                            Some(decoded) => assert_eq!(decoded, $expected, "expected {:?} to decode to {:?}, but got {:?}", $opcode, $expected, decoded),
+                            None => panic!("couldn't decode opcode {}", $opcode),
+                        }
+                    }
+                );
+                ($opcode:expr => $expected:expr, $($chain_opcode:expr => $chain_expected:expr),+$(,)*) => {{
+                    decodes_to!($opcode => $expected);
+                    decodes_to! { $($chain_opcode => $chain_expected),+ };
+                }}
             }
 
             #[test]
-            fn call() {
-                let opcode = 0x27A9;
-                let decoded_opcode = decode_opcode(opcode);
-
-                match decoded_opcode {
-                    Some(Opcode::Call { address }) => assert_eq!(address, 0x07A9),
-                    _ => panic!("decoded wrong opcode {:?}", decoded_opcode)
-                }
-            }
-
-            #[test]
-            fn skip_if_eq_const() {
-                let opcode = 0x342F;
-                let decoded_opcode = decode_opcode(opcode);
-
-                match decoded_opcode {
-                    Some(Opcode::SkipIfEqual { register, value }) => {
-                        assert_eq!(register, 0x04);
-                        assert_eq!(value, 0x2F);
-                    },
-                    _ => panic!("decoded wrong opcode {:?}", decoded_opcode)
-                }
-            }
-
-            #[test]
-            fn skip_if_not_eq_const() {
-                let opcode = 0x461F;
-                let decoded_opcode = decode_opcode(opcode);
-
-                match decoded_opcode {
-                    Some(Opcode::SkipIfNotEqual { register, value }) => {
-                        assert_eq!(register, 0x06);
-                        assert_eq!(value, 0x1F);
-                    },
-                    _ => panic!("decoded wrong opcode {:?}", decoded_opcode)
-                }
-            }
-
-            #[test]
-            fn skip_if_registers_eq() {
-                let opcode = 0x5A30;
-                let decoded_opcode = decode_opcode(opcode);
-
-                match decoded_opcode {
-                    Some(Opcode::SkipIfRegistersEqual { register1, register2 }) => {
-                        assert_eq!(register1, 0x0A);
-                        assert_eq!(register2, 0x03);
-                    },
-                    _ => panic!("decoded wrong opcode {:?}", decoded_opcode)
-                }
-            }
-
-            #[test]
-            fn set_idx_reg() {
-                let opcode = 0xA428;
-                let decoded_opcode = decode_opcode(opcode);
-
-                match decoded_opcode {
-                    Some(Opcode::SetIndexRegister { value }) => assert_eq!(value, 0x0428),
-                    _ => panic!("decoded wrong opcode {:?}", decoded_opcode)
-                }
-            }
-
-            #[test]
-            fn set_register() {
-                let opcode = 0x6E72;
-                let decoded_opcode = decode_opcode(opcode);
-
-                match decoded_opcode {
-                    Some(Opcode::SetRegister { register, value }) => {
-                        assert_eq!(register, 0x0E);
-                        assert_eq!(value, 0x72);
-                    },
-                    _ => panic!("decoded wrong opcode {:?}", decoded_opcode)
-                }
-            }
-
-            #[test]
-            fn add_const() {
-                let opcode = 0x72EE;
-                let decoded_opcode = decode_opcode(opcode);
-
-                match decoded_opcode {
-                    Some(Opcode::AddConstant { register, value }) => {
-                        assert_eq!(register, 0x02);
-                        assert_eq!(value, 0xEE);
-                    },
-                    _ => panic!("decoded wrong opcode {:?}", decoded_opcode)
-                }
-            }
-
-            #[test]
-            fn copy_register() {
-                let opcode = 0x8370;
-                let decoded_opcode = decode_opcode(opcode);
-
-                match decoded_opcode {
-                    Some(Opcode::CopyRegister { target, source }) => {
-                        assert_eq!(target, 0x03);
-                        assert_eq!(source, 0x07);
-                    },
-                    _ => panic!("decoded wrong opcode {:?}", decoded_opcode)
-                }
-            }
-
-            #[test]
-            fn bit_or() {
-                let opcode = 0x8371;
-                let decoded_opcode = decode_opcode(opcode);
-
-                match decoded_opcode {
-                    Some(Opcode::BitOr { target, other }) => {
-                        assert_eq!(target, 0x03);
-                        assert_eq!(other, 0x07);
-                    },
-                    _ => panic!("decoded wrong opcode {:?}", decoded_opcode)
-                }
-            }
-
-            #[test]
-            fn bit_and() {
-                let opcode = 0x8372;
-                let decoded_opcode = decode_opcode(opcode);
-
-                match decoded_opcode {
-                    Some(Opcode::BitAnd { target, other }) => {
-                        assert_eq!(target, 0x03);
-                        assert_eq!(other, 0x07);
-                    },
-                    _ => panic!("decoded wrong opcode {:?}", decoded_opcode)
-                }
-            }
-
-            #[test]
-            fn bit_xor() {
-                let opcode = 0x8373;
-                let decoded_opcode = decode_opcode(opcode);
-
-                match decoded_opcode {
-                    Some(Opcode::BitXor { target, other }) => {
-                        assert_eq!(target, 0x03);
-                        assert_eq!(other, 0x07);
-                    },
-                    _ => panic!("decoded wrong opcode {:?}", decoded_opcode)
-                }
-            }
-
-            #[test]
-            fn register_add() {
-                let opcode = 0x8374;
-                let decoded_opcode = decode_opcode(opcode);
-
-                match decoded_opcode {
-                    Some(Opcode::AddRegister { target, other }) => {
-                        assert_eq!(target, 0x03);
-                        assert_eq!(other, 0x07);
-                    },
-                    _ => panic!("decoded wrong opcode {:?}", decoded_opcode)
-                }
-            }
-
-            #[test]
-            fn register_sub() {
-                let opcode = 0x8375;
-                let decoded_opcode = decode_opcode(opcode);
-
-                match decoded_opcode {
-                    Some(Opcode::SubtractRegister { target, other }) => {
-                        assert_eq!(target, 0x03);
-                        assert_eq!(other, 0x07);
-                    },
-                    _ => panic!("decoded wrong opcode {:?}", decoded_opcode)
-                }
-            }
-
-            #[test]
-            fn right_shift() {
-                let opcode = 0x8376;
-                let decoded_opcode = decode_opcode(opcode);
-
-                match decoded_opcode {
-                    Some(Opcode::RightShift { target, source }) => {
-                        assert_eq!(target, 0x03);
-                        assert_eq!(source, 0x07);
-                    },
-                    _ => panic!("decoded wrong opcode {:?}", decoded_opcode)
-                }
-            }
-
-            #[test]
-            fn alt_subtract() {
-                let opcode = 0x8377;
-                let decoded_opcode = decode_opcode(opcode);
-
-                match decoded_opcode {
-                    Some(Opcode::AltSubtractRegister { target, other }) => {
-                        assert_eq!(target, 0x03);
-                        assert_eq!(other, 0x07);
-                    },
-                    _ => panic!("decoded wrong opcode {:?}", decoded_opcode)
-                }
-            }
-
-            #[test]
-            fn left_shift() {
-                let opcode = 0x8378;
-                let decoded_opcode = decode_opcode(opcode);
-
-                match decoded_opcode {
-                    Some(Opcode::LeftShift { target, source }) => {
-                        assert_eq!(target, 0x03);
-                        assert_eq!(source, 0x07);
-                    },
-                    _ => panic!("decoded wrong opcode {:?}", decoded_opcode)
-                }
-            }
-
-            #[test]
-            fn skip_if_registers_not_eq() {
-                let opcode = 0x9370;
-                let decoded_opcode = decode_opcode(opcode);
-
-                match decoded_opcode {
-                    Some(Opcode::SkipIfRegistersNotEqual { register1, register2  }) => {
-                        assert_eq!(register1, 0x03);
-                        assert_eq!(register2, 0x07);
-                    },
-                    _ => panic!("decoded wrong opcode {:?}", decoded_opcode)
-                }
-            }
-
-            #[test]
-            fn offset_jump() {
-                let opcode = 0xB3FC;
-                let decoded_opcode = decode_opcode(opcode);
-
-                match decoded_opcode {
-                    Some(Opcode::OffsetJump { address  }) => {
-                        assert_eq!(address, 0x03FC);
-                    },
-                    _ => panic!("decoded wrong opcode {:?}", decoded_opcode)
-                }
-            }
-
-            #[test]
-            fn rand() {
-                let opcode = 0xC1F0;
-                let decoded_opcode = decode_opcode(opcode);
-
-                match decoded_opcode {
-                    Some(Opcode::Rand { register, mask }) => {
-                        assert_eq!(register, 0x1);
-                        assert_eq!(mask, 0xF0);
-                    },
-                    _ => panic!("decoded wrong opcode {:?}", decoded_opcode)
-                }
-            }
-
-            #[test]
-            fn display() {
-                let opcode = 0xD01E;
-                let decoded_opcode = decode_opcode(opcode);
-
-                match decoded_opcode {
-                    Some(Opcode::Display { x, y, height }) => {
-                        assert_eq!(x, 0x0);
-                        assert_eq!(y, 0x1);
-                        assert_eq!(height, 0xE);
-                    },
-                    _ => panic!("decoded wrong opcode {:?}", decoded_opcode)
-                }
-            }
-
-            #[test]
-            fn skip_if_key_pressed() {
-                let opcode = 0xE29E;
-                let decoded_opcode = decode_opcode(opcode);
-
-                match decoded_opcode {
-                    Some(Opcode::SkipIfKeyPressed { key }) => {
-                        assert_eq!(key, 0x2);
-                    },
-                    _ => panic!("decoded wrong opcode {:?}", decoded_opcode)
-                }
-            }
-
-            #[test]
-            fn skip_if_key_not_pressed() {
-                let opcode = 0xE2A1;
-                let decoded_opcode = decode_opcode(opcode);
-
-                match decoded_opcode {
-                    Some(Opcode::SkipIfKeyNotPressed { key }) => {
-                        assert_eq!(key, 0x2);
-                    },
-                    _ => panic!("decoded wrong opcode {:?}", decoded_opcode)
-                }
-            }
-
-            #[test]
-            fn get_delay() {
-                let opcode = 0xF307;
-                let decoded_opcode = decode_opcode(opcode);
-
-                match decoded_opcode {
-                    Some(Opcode::GetDelayTimer { register }) => {
-                        assert_eq!(register, 0x3);
-                    },
-                    _ => panic!("decoded wrong opcode {:?}", decoded_opcode)
-                }
-            }
-
-            #[test]
-            fn await_keypress() {
-                let opcode = 0xF90A;
-                let decoded_opcode = decode_opcode(opcode);
-
-                match decoded_opcode {
-                    Some(Opcode::AwaitKeypress { register }) => {
-                        assert_eq!(register, 0x9);
-                    },
-                    _ => panic!("decoded wrong opcode {:?}", decoded_opcode)
-                }
-            }
-
-            #[test]
-            fn set_delay() {
-                let opcode = 0xFE15;
-                let decoded_opcode = decode_opcode(opcode);
-
-                match decoded_opcode {
-                    Some(Opcode::SetDelayTimer { value }) => {
-                        assert_eq!(value, 0xE);
-                    },
-                    _ => panic!("decoded wrong opcode {:?}", decoded_opcode)
-                }
-            }
-
-            #[test]
-            fn set_sound() {
-                let opcode = 0xFE18;
-                let decoded_opcode = decode_opcode(opcode);
-
-                match decoded_opcode {
-                    Some(Opcode::SetSoundTimer { value }) => {
-                        assert_eq!(value, 0xE);
-                    },
-                    _ => panic!("decoded wrong opcode {:?}", decoded_opcode)
-                }
-            }
-
-            #[test]
-            fn increment_index_register() {
-                let opcode = 0xF21E;
-                let decoded_opcode = decode_opcode(opcode);
-
-                match decoded_opcode {
-                    Some(Opcode::IncrementIndexRegister { register }) => {
-                        assert_eq!(register, 0x2);
-                    },
-                    _ => panic!("decoded wrong opcode {:?}", decoded_opcode)
-                }
-            }
-
-            #[test]
-            fn select_font_char() {
-                let opcode = 0xF829;
-                let decoded_opcode = decode_opcode(opcode);
-
-                match decoded_opcode {
-                    Some(Opcode::SetIndexToFont { register }) => {
-                        assert_eq!(register, 0x8);
-                    },
-                    _ => panic!("decoded wrong opcode {:?}", decoded_opcode)
-                }
-            }
-
-            #[test]
-            fn bcd() {
-                let opcode = 0xF833;
-                let decoded_opcode = decode_opcode(opcode);
-
-                match decoded_opcode {
-                    Some(Opcode::StoreDecimal { register }) => {
-                        assert_eq!(register, 0x8);
-                    },
-                    _ => panic!("decoded wrong opcode {:?}", decoded_opcode)
-                }
-            }
-
-            #[test]
-            fn reg_dump() {
-                let opcode = 0xF855;
-                let decoded_opcode = decode_opcode(opcode);
-
-                match decoded_opcode {
-                    Some(Opcode::MemDump { max_register }) => {
-                        assert_eq!(max_register, 0x8);
-                    },
-                    _ => panic!("decoded wrong opcode {:?}", decoded_opcode)
-                }
-            }
-
-            #[test]
-            fn reg_load() {
-                let opcode = 0xF965;
-                let decoded_opcode = decode_opcode(opcode);
-
-                match decoded_opcode {
-                    Some(Opcode::MemLoad { max_register }) => {
-                        assert_eq!(max_register, 0x9);
-                    },
-                    _ => panic!("decoded wrong opcode {:?}", decoded_opcode)
+            fn test_decoding() {
+                decodes_to! {
+                    0x19DE => Opcode::Jump { address: 0x09DE },
+                    0x27A9 => Opcode::Call { address: 0x07A9 },
+                    0x342F => Opcode::SkipIfEqual { register: 0x4, value: 0x2F },
+                    0x461F => Opcode::SkipIfNotEqual { register: 0x6, value: 0x1F },
+                    0x5A30 => Opcode::SkipIfRegistersEqual { register1: 0xA, register2: 0x3 },
+                    0x6E72 => Opcode::SetRegister { register: 0xE, value: 0x72 },
+                    0x72EE => Opcode::AddConstant { register: 0x2, value: 0xEE },
+                    0x8370 => Opcode::CopyRegister { target: 0x3, source: 0x7 },
+                    0x8371 => Opcode::BitOr { target: 0x3, other: 0x7 },
+                    0x8372 => Opcode::BitAnd { target: 0x3, other: 0x7 },
+                    0x8373 => Opcode::BitXor { target: 0x3, other: 0x7 },
+                    0x8374 => Opcode::AddRegister { target: 0x3, other: 0x7 },
+                    0x8375 => Opcode::SubtractRegister { target: 0x3, other: 0x7 },
+                    0x8376 => Opcode::RightShift { target: 0x3, source: 0x7 },
+                    0x8377 => Opcode::AltSubtractRegister { target: 0x3, other: 0x7 },
+                    0x8378 => Opcode::LeftShift { target: 0x3, source: 0x7 },
+                    0x9370 => Opcode::SkipIfRegistersNotEqual { register1: 0x3, register2: 0x7 },
+                    0xA428 => Opcode::SetIndexRegister { value: 0x0428 },
+                    0xB3FC => Opcode::OffsetJump { address: 0x03FC },
+                    0xC1F0 => Opcode::Rand { register: 0x1, mask: 0xF0 },
+                    0xD01E => Opcode::Display { x: 0x0, y: 0x1, height: 0xE },
+                    0xE29E => Opcode::SkipIfKeyPressed { key: 0x2 },
+                    0xE2A1 => Opcode::SkipIfKeyNotPressed { key: 0x2 },
+                    0xF21E => Opcode::IncrementIndexRegister { register: 0x2 },
+                    0xF307 => Opcode::GetDelayTimer { register: 0x3 },
+                    0xF829 => Opcode::SetIndexToFont { register: 0x8 },
+                    0xF833 => Opcode::StoreDecimal { register: 0x8 },
+                    0xF855 => Opcode::MemDump { max_register: 0x8 },
+                    0xF90A => Opcode::AwaitKeypress { register: 0x9 },
+                    0xF965 => Opcode::MemLoad { max_register: 0x9 },
+                    0xFE15 => Opcode::SetDelayTimer { value: 0xE },
+                    0xFE18 => Opcode::SetSoundTimer { value: 0xE },
                 }
             }
         }
